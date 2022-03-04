@@ -3,6 +3,7 @@ from gym import spaces
 import numpy as np
 import cv2
 import random
+import imageio
 
 SNAKE_LEN_GOAL = 15
 SIZE = 50
@@ -30,7 +31,7 @@ class SnakeEnv(gym.Env):
     def __init__(self):
         super(SnakeEnv, self).__init__()
         self.action_space = spaces.Discrete(4)
-        self.observation_space = spaces.Box(low=-5, high=5,shape=(5 + 2 * SNAKE_LEN_GOAL,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-5, high=5, shape=(5 + 2 * SNAKE_LEN_GOAL,), dtype=np.float32)
 
     def step(self, action):
         self.turn += 1
@@ -83,6 +84,7 @@ class SnakeEnv(gym.Env):
         self.turn = 0
         self.snake_head = self.snake_position[0].copy()
         self.total_reward = self._get_total_reward()
+        self.frames = []
 
         observation = self._get_observation()
         return observation  # reward, done, info can't be included
@@ -110,7 +112,7 @@ class SnakeEnv(gym.Env):
         observation = [head_x, head_y, apple_x, apple_y, snake_length] + previous_pos
         return np.array(observation)
 
-    def render(self, mode='human', done = False):
+    def render(self, mode='human', done=False, make_gif=False):
         img = np.zeros((SIZE * DIM + 100, SIZE * DIM, 3), dtype='uint8')
 
         # Display Apple
@@ -128,13 +130,21 @@ class SnakeEnv(gym.Env):
 
         # Display Score
         font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.putText(img, 'Score : {}'.format(self.score), (int(SIZE * DIM /5), SIZE * DIM + 80), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
-
+        cv2.putText(img, 'Score : {}'.format(self.score), (int(SIZE * DIM / 5), SIZE * DIM + 80), font, 1,
+                    (255, 255, 255), 2, cv2.LINE_AA)
         cv2.imshow('snake', img)
         if not done:
-            cv2.waitKey(100)
+            cv2.waitKey(int(1000 / (25 - self.score)))
         else:
             cv2.waitKey(1500)
+
+        if make_gif:
+            self.frames.append(img)
+            if done:
+                with imageio.get_writer("snake.gif", mode="I") as writer:
+                    for frame in self.frames:
+                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        writer.append_data(rgb_frame)
 
     def close(self):
         cv2.destroyAllWindows()
